@@ -1,0 +1,163 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+
+```{r, echo=FALSE}
+setwd("/home/alex/Pictures")
+
+dd <- read.csv("hotel_booking_5000_rows.csv", stringsAsFactors=TRUE);
+
+class(dd)
+dim(dd)
+n<-dim(dd)[1]
+n
+K<-dim(dd)[2]
+K
+names(dd)
+
+library(dplyr)
+```
+
+```{r, echo=FALSE} 
+month_mapping <- setNames(1:12, month.name)
+dd <- dd %>%
+  # mutación temporal para crear "arrival_date"
+  mutate(
+    arrival_date_year = as.character(arrival_date_year),
+    arrival_date_month = as.character(month_mapping[as.character(arrival_date_month)]),
+    arrival_date_day_of_month = as.character(arrival_date_day_of_month),
+  )
+
+
+# creación arrival_date, combinación 3 columnas
+dd <- dd %>%
+  mutate(
+    arrival_date = as.Date(
+      paste(arrival_date_year, arrival_date_month, arrival_date_day_of_month, sep = "-"),
+      format = "%Y-%m-%d"
+    )
+  )
+
+dd <- dd %>%
+  mutate(
+    hotel = as.factor(hotel),
+    is_canceled = as.factor(is_canceled),
+    meal = as.factor(meal),
+    country = as.factor(country),
+    market_segment = as.factor(market_segment),
+    distribution_channel = as.factor(distribution_channel),
+    is_repeated_guest = as.factor(is_repeated_guest),
+    reserved_room_type = as.factor(reserved_room_type),
+    assigned_room_type = as.factor(assigned_room_type),
+    deposit_type = as.factor(deposit_type),
+    customer_type = as.factor(customer_type),
+    reservation_status = as.factor(reservation_status),
+    company = as.factor(company),
+    arrival_date_year = as.factor(arrival_date_year),
+    arrival_date_month = as.factor(arrival_date_month),
+    arrival_date_day_of_month = as.factor(arrival_date_day_of_month),
+    arrival_date_week_number = as.factor(arrival_date_week_number)
+  )
+```
+```{r, echo=FALSE} 
+#select some variables
+#DO NOT INCLUDE identifiers in the analysis!!!!
+#actives<-c(1:5,7:11, 13:23, 26:32)
+#actives<-c(1:5,7:11, 13:23, 26:32)
+dd <- dd %>%
+  select(-c(total_of_special_requests, previous_bookings_not_canceled, previous_cancellations, reservation_status_date, deposit_type, company, agent, 
+            distribution_channel, market_segment, required_car_parking_spaces, reserved_room_type, 
+            assigned_room_type, is_repeated_guest, name, email, phone.number, credit_card, booking_changes,
+            customer_type)
+         )
+#ddActives<-dd[,actives]
+
+#Care! update K
+
+K<-dim(dd)[2]
+
+str(dd)
+
+# Change variables' names
+
+dd <- dd %>% rename(can = is_canceled)
+dd <- dd %>% rename(lt = lead_time)
+dd <- dd %>% rename(arr_y = arrival_date_year)
+dd <- dd %>% rename(arr_m = arrival_date_month)
+dd <- dd %>% rename(arr_wn  = arrival_date_week_number)
+dd <- dd %>% rename(arr_dm = arrival_date_day_of_month)
+dd <- dd %>% rename(s_wend_n = stays_in_weekend_nights)
+dd <- dd %>% rename(s_wday_n  = stays_in_week_nights)
+#dd <- dd %>% rename(mkt_s = market_segment)
+#dd <- dd %>% rename(dst_ch = distribution_channel)
+#dd <- dd %>% rename(prev_can = previous_cancellations)
+#dd <- dd %>% rename(pb_nc = previous_bookings_not_canceled)
+#dd <- dd %>% rename(res_rt = reserved_room_type)
+#dd <- dd %>% rename(as_rt  = assigned_room_type)
+#dd <- dd %>% rename(bk_ch = booking_changes)
+#dd <- dd %>% rename(dp_t = deposit_type)
+dd <- dd %>% rename(d_wl = days_in_waiting_list)
+#dd <- dd %>% rename(c_type = customer_type)
+#dd <- dd %>% rename(req_prk = required_car_parking_spaces)
+#dd <- dd %>% rename(sp_req = total_of_special_requests)
+dd <- dd %>% rename(res_s = reservation_status)
+#dd <- dd %>% rename(reservation_status_date = reservation_status_date)
+dd <- dd %>% rename(arr = arrival_date)
+
+```
+numeric_cols <- dd %>%
+  select(where(is.numeric))
+
+#seleccion some rows
+#Dselection<-dd[Condition, ]
+```{r, echo=FALSE} 
+library(ggplot2)
+library(GGally)
+
+descriptiva<-function(X, nom){
+  if (is.numeric(X) && class(X)!= "Date"){
+     hist(X, main=paste("Histogram of", nom))
+      boxplot(X, horizontal=TRUE, main=paste("Boxplot of",nom))
+      print("Extended Summary Statistics")
+      
+      cat("Extended Summary Statistics:\n")
+      print(summary(X))
+      
+      cat("Standard Deviation:\n")
+      print(sd(X, na.rm = TRUE))
+      
+      cat("Variation Coefficient:\n")
+      print(sd(X, na.rm = TRUE) / mean(X, na.rm = TRUE))
+      
+      #print(summary(X))
+      #print(paste("sd: ", sd(X, na.rm=TRUE)))
+      #print(paste("vc: ", sd(X, na.rm=TRUE)/mean(X, na.rm=TRUE)))
+  }
+      
+}
+```
+
+```{r, echo=FALSE} 
+dataset<-dd
+actives<-c(1:K)
+
+#Basic descriptive analysis for numerical variables
+#(decide the maximum number of colors you can need in a graph based on your metadata file)
+
+listOfColors<-rainbow(39)
+
+par(ask=TRUE)
+
+for(k in actives){
+  print(paste("variable ", k, ":", names(dd)[k] ))
+  descriptiva(dd[,k], names(dd)[k])
+}
+par(ask=FALSE)
+
+attach(dd)
+
+```
+

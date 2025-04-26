@@ -1,0 +1,221 @@
+---
+title: "D3. Project development: descriptive analysis"
+output: word_document
+editor_options: 
+  chunk_output_type: console
+---
+#7TotaldescriptivaClean5.Rmd
+#install.packages("rmarkdown")
+#library("rmarkdown")
+
+## Introduction
+This document provides the initial univariate descriptive statistics of the raw variables in the hotel booking dataset.
+
+#loading libraries
+install.packages("ggplot2")
+library(ggplot2) 
+install.packages("dplyr")
+library(dplyr)
+
+#WARNING: data must have been properly declared before (factors, dates...)
+
+#Set the folder where the word file is going to be generated
+```{r, echo=FALSE} 
+
+setwd("/home/alex/Pictures")
+dd<- read.table("hotel_booking_5000_rows.csv",header=T, sep=",", dec=".")
+
+```  
+
+#without including the R instruction in the final document
+```{r, echo=FALSE}              
+class(dd)
+```
+
+#Get dimensions of the dataset
+````{r, echo=FALSE} 
+dim(dd)
+n<-dim(dd)[1]
+K<-dim(dd)[2]
+
+n
+K
+````
+
+#Check the variables 
+```{r, echo=FALSE}  
+names(dd)
+str(dd)
+head(dd) 
+summary(dd)
+```
+
+#Decide if you need to declare some more factor or date
+```{r, echo=FALSE}  
+#para la conversión numérica de los meses 
+library(dplyr)
+
+month_mapping <- setNames(1:12, month.name)
+dd <- dd %>%
+  mutate(
+    arrival_date_year = as.numeric(arrival_date_year),
+    arrival_date_month = as.numeric(month_mapping[arrival_date_month]),
+    arrival_date_day_of_month = as.numeric(arrival_date_day_of_month)
+  )
+
+
+# creación arrival_date, combinación 3 columnas
+dd <- dd %>%
+  mutate(
+    arrival_date = as.Date(
+      paste(arrival_date_year, arrival_date_month, arrival_date_day_of_month, sep = "-"),
+      format = "%Y-%m-%d"
+    )
+  )
+
+dd <- dd %>%
+  mutate(
+    hotel = as.factor(hotel),
+    is_canceled = as.factor(is_canceled),
+    meal = as.factor(meal),
+    country = as.factor(country),
+    market_segment = as.factor(market_segment),
+    distribution_channel = as.factor(distribution_channel),
+    is_repeated_guest = as.factor(is_repeated_guest),
+    reserved_room_type = as.factor(reserved_room_type),
+    assigned_room_type = as.factor(assigned_room_type),
+    deposit_type = as.factor(deposit_type),
+    customer_type = as.factor(customer_type),
+    reservation_status = as.factor(reservation_status),
+    company = as.factor(company),
+    arrival_date_week_number = as.factor(arrival_date_week_number)
+  )
+
+dd <- dd %>%
+  select(-c(name, email, phone.number, credit_card, arrival_date_year, arrival_date_month, arrival_date_day_of_month))
+
+K<-dim(dd)[2]
+
+str(dd)
+
+```
+
+#Calculation of mean, median and standard deviation
+```{r, echo=FALSE} 
+numeric_cols <- dd %>%
+  select(where(is.numeric))
+
+summary_numcols <- numeric_cols %>%
+    summarise_all(list(
+      mean = ~mean(., na.rm = TRUE),
+      median = ~median(., na.rm=TRUE),
+      sd = ~sd(., na.rm = TRUE),
+      var = ~var(., na.rm = TRUE)
+    ))
+
+print(summary_numcols)
+
+```
+
+#Given scheme for descriptive analyis
+```{r, echo=FALSE} 
+
+descriptiva<-function(X, nom){
+  if (!(is.numeric(X) || class(X)=="Date")){ 
+    frecs<-table(as.factor(X), useNA="ifany")
+    proportions<-frecs/n
+    #ojo, decidir si calcular porcentages con o sin missing values
+    pie(frecs, cex=0.6, main=paste("Pie of", nom))
+    barplot(frecs, las=3, cex.names=0.7, main=paste("Barplot of", nom), col=listOfColors)
+    print(paste("Number of modalities: ", length(frecs)))
+    print("Frequency table")
+    print(frecs)
+    print("Relative frequency table (proportions)")
+    print(proportions)
+    print("Frequency table sorted")
+    print(sort(frecs, decreasing=TRUE))
+    print("Relative frequency table (proportions) sorted")
+    print(sort(proportions, decreasing=TRUE))
+   }else{
+     if(class(X)=="Date"){
+       print(summary(X))
+       print(sd(X))
+       #decide breaks: weeks, months, quarters...
+       hist(X,breaks="weeks")
+     }else{
+       hist(X, main=paste("Histogram of", nom))
+       boxplot(X, horizontal=TRUE, main=paste("Boxplot of",nom))
+       print("Extended Summary Statistics")
+       print(summary(X))
+       print(paste("sd: ", sd(X, na.rm=TRUE)))
+       print(paste("vc: ", sd(X, na.rm=TRUE)/mean(X, na.rm=TRUE)))
+      }
+   }
+}
+
+dataset<-dd
+actives<-c(1:K)
+
+```
+
+#Basic descriptive analysis for numerical variables
+#(decide the maximum number of colors you can need in a graph based on your metadata file)
+```{r, echo=FALSE} 
+listOfColors<-rainbow(39)
+
+par(ask=TRUE)
+
+for(k in actives){
+  print(paste("variable ", k, ":", names(dd)[k] ))
+  descriptiva(dd[,k], names(dd)[k])
+}
+par(ask=FALSE)
+```
+
+#Bivariate analysis
+```{r, echo=FALSE} 
+
+temp_numeric_cols <- numeric_cols
+
+temp_numeric_cols <- temp_numeric_cols %>%
+  select(-c(previous_cancellations, previous_bookings_not_canceled, booking_changes, agent, required_car_parking_spaces, total_of_special_requests)
+         )
+
+
+correlation_matrix <- cor(temp_numeric_cols, use = "complete.obs")  # Handles missing values
+print(correlation_matrix)
+correlation_matrix |> 
+  round(2) |> 
+  write.csv("correlation_matrix.csv", row.names = TRUE)
+
+par(ask=TRUE)
+library(ggplot2)
+ggplot(dd, aes(x = stays_in_weekend_nights, y = stays_in_week_nights)) +
+  geom_point(alpha = 0.5, color = "steelblue", na.rm = TRUE) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Relationship between Weekend and Weekday Stays",
+       x = "Stays in Weekend Nights",
+       y = "Stays in Week Nights") +
+  theme_minimal()
+
+# Scatter plot for lead_time vs arrival_date_week_number
+ggplot(dd, aes(x = as.numeric(as.character(arrival_date_week_number)), y = lead_time)) +
+  geom_point(alpha = 0.4, color = "darkgreen", na.rm = TRUE, position = position_jitter(width = 0.2)) +
+  geom_smooth(method = "loess", color = "orange", se = FALSE) +
+  labs(title = "Lead Time vs Booking Week",
+       x = "Arrival Week Number (1-53)",
+       y = "Lead Time (Days)") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(1, 53, 4))
+
+par(ask=FALSE)
+
+```
+
+#per exportar figures d'R per programa
+#dev.off()
+#png(file=mypath,width = 950, height = 800, units = "px")
+#dev.off()
+
+
+
